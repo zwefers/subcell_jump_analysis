@@ -1,0 +1,18 @@
+# Symlink to scratch — don't commit (dangling on other machines)
+/embeddings
+
+# Snapshot tarball — commit manually when ready
+# Create with: tar -czhf embeddings_snapshot.tar.gz embeddings/well_level embeddings/processed
+!/embeddings_snapshot.tar.gz
+
+# Local config
+/.env
+
+# SLURM logs
+/slurm_launchers/slurm_out/
+
+# Legacy / scratch files
+/figures/old/
+
+__pycache__/
+*.pyc
