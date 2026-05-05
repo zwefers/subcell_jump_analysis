@@ -1,9 +1,9 @@
-[submodule "sucell_jump_analysis/models/DINO4Cells_code"]
-	path = sucell_jump_analysis/models/DINO4Cells_code
+[submodule "models/DINO4Cells_code"]
+	path = models/DINO4Cells_code
 	url = https://github.com/broadinstitute/DINO4Cells_code.git
-[submodule "sucell_jump_analysis/models/DeepProfiler"]
-	path = sucell_jump_analysis/models/DeepProfiler
+[submodule "models/DeepProfiler"]
+	path = models/DeepProfiler
 	url = https://github.com/cytomining/DeepProfiler.git
-[submodule "sucell_jump_analysis/models/SubCellPortable"]
-	path = sucell_jump_analysis/models/SubCellPortable
+[submodule "models/SubCellPortable"]
+	path = models/SubCellPortable
 	url = https://github.com/CellProfiling/SubCellPortable.git
