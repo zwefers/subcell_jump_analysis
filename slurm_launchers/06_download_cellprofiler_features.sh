@@ -6,8 +6,8 @@
 #SBATCH --output=slurm_out/cell_profiler_%j.out
 #SBATCH --error=slurm_out/cell_profiler_%j.err
 #
-# Fetch CellProfiler profiles from S3 and reformat the old DeepProfiler
-# CSVs. These don't depend on inference — can run anytime.
+# Fetch CellProfiler well-level profiles from S3 (CP_S3_BUCKET/CP_S3_PREFIX).
+# Doesn't depend on inference — can run anytime.
 
 set -euo pipefail
 

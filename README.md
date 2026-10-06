@@ -64,15 +64,8 @@ Create a `.env` file in the project root. It is sourced by the SLURM launchers (
 | `CONDA_ENV_ANALYSIS` | Name of analysis conda env (default: `moa`) |
 | `CONDA_ENV_INFERENCE` | Name of GPU inference conda env (default: `inference_gpu`) |
 | `DEEPPROF_ENV` | Path to the DeepProfiler virtualenv |
-
-Optional (for DeepProfiler/CellProfiler download steps):
-
-| Variable | Description |
-|----------|-------------|
-| `OLD_DEEPPROFILER_MEAN` | Path to legacy DeepProfiler mean embeddings CSV |
-| `OLD_DEEPPROFILER_MEDIAN` | Path to legacy DeepProfiler median embeddings CSV |
-| `CP_S3_BUCKET` | S3 bucket for CellProfiler profiles (`cellpainting-gallery`) |
-| `CP_S3_PREFIX` | S3 prefix for CellProfiler profiles |
+| `CP_S3_BUCKET` | S3 bucket for CellProfiler profiles: `cellpainting-gallery` |
+| `CP_S3_PREFIX` | S3 prefix for CellProfiler profiles: `cpg0000-jump-pilot/source_4/workspace/profiles/2020_11_04_CPJUMP1` |
 
 ### 4. Data
 
