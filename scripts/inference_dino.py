@@ -27,67 +27,32 @@ from glob import glob
 import numpy as np
 import torch
 import yaml
-from PIL import Image
 from tqdm import tqdm
 
 PROJECT_ROOT = os.environ["PROJECT_ROOT"]
 DINO_ROOT = os.path.join(PROJECT_ROOT, "models", "DINO4Cells_code")
 
-# DINO4Cells' archs/vision_transformer.py does `from utils.utils import trunc_normal_`
-# for weight init, but that module (a) has no __init__.py so it's shadowed by our
-# own utils/ package, and (b) imports kornia at top-level which we don't need.
-# Since we load pretrained weights anyway, we just stub the import with torch's
-# built-in trunc_normal_ (identical signature, available since torch 1.8).
+# ──────────────────────────────────────────────────────────────────────────────
+# Import ordering matters here (same pattern as jump_attention_map_dino.py).
+#
+# 1. Import project utils FIRST. This caches `utils` and `utils.crop_loader`
+#    in sys.modules, so later sys.path changes can't shadow them.
+# 2. THEN stub sys.modules["utils.utils"]. DINO4Cells' archs/vision_transformer.py
+#    does `from utils.utils import trunc_normal_` for weight init, but that module
+#    (a) would be shadowed by our own utils/ package, and (b) imports kornia at
+#    top-level which we don't need. Since we load pretrained weights anyway, we
+#    stub it with torch's built-in trunc_normal_ (identical signature).
+# 3. THEN insert DINO_ROOT and import DINO's ViT.
+# ──────────────────────────────────────────────────────────────────────────────
+sys.path.insert(0, PROJECT_ROOT)
+from utils.crop_loader import get_mask, load_crop, select_channels  # noqa: E402
+
 _stub = types.ModuleType("utils.utils")
 _stub.trunc_normal_ = torch.nn.init.trunc_normal_
 sys.modules["utils.utils"] = _stub
 
 sys.path.insert(0, DINO_ROOT)
 from archs.vision_transformer import vit_base  # noqa: E402
-
-
-# --- Inline crop loading -----------------------------------------------------
-# We can't import from our own utils/ package here because DINO4Cells also has
-# a utils/ directory and the sys.modules stub above would interfere. These are
-# tiny enough to inline.
-
-# Channel layout in the stacked 9-channel crop PNGs
-CHANNEL_IDX = {"Mito": 0, "AGP": 1, "RNA": 2, "ER": 3, "DNA": 4}
-MASK_IDX = 8
-N_CHANNELS = 9
-NATIVE_CROP_SIZE = 192
-
-
-def load_crop(
-    path: str,
-    crop_size: int,
-    channel_idx: list[int],
-    return_mask: bool = False,
-):
-    """
-    Load a stacked-PNG crop, center-crop, and select channels.
-
-    When return_mask=True, also returns the binary cell mask (channel 8) as a
-    separate (1, H, W) array. The mask is NOT applied here — callers should
-    apply it after preprocess_batch so normalization stats come from the full
-    crop (matching the model's training distribution) and masking acts as a
-    clean intervention on the normalized image.
-
-    Returns:
-        (len(channel_idx), crop_size, crop_size) float32 in [0, 1], or
-        (image, mask) tuple if return_mask=True.
-    """
-    arr = np.array(Image.open(path))  # (H, C*W) uint8
-    arr = arr.reshape(NATIVE_CROP_SIZE, N_CHANNELS, NATIVE_CROP_SIZE).transpose(1, 0, 2)
-    if crop_size < NATIVE_CROP_SIZE:
-        off = (NATIVE_CROP_SIZE - crop_size) // 2
-        arr = arr[:, off:off + crop_size, off:off + crop_size]
-    arr = arr.astype(np.float32) / 255.0
-    img = arr[channel_idx]
-    if return_mask:
-        mask = (arr[MASK_IDX] > 0.5).astype(np.float32)[None, :, :]  # (1, H, W)
-        return img, mask
-    return img
 
 
 # --- Preprocessing -----------------------------------------------------------
@@ -155,7 +120,7 @@ def run_plate(
     os.makedirs(out_root, exist_ok=True)
 
     crop_size = config["crop_size"]
-    channel_idx = [CHANNEL_IDX[c] for c in config["channels"]]
+    channels = config["channels"]
     apply_mask = config.get("apply_mask", False)
 
     wells = sorted(os.listdir(os.path.join(crop_root, plate)))
@@ -176,19 +141,14 @@ def run_plate(
 
         all_feats = []
         for i in range(0, len(crop_paths), cell_batch_size):
-            batch_paths = crop_paths[i : i + cell_batch_size]
-
+            stacks = [load_crop(p, crop_size) for p in crop_paths[i : i + cell_batch_size]]
+            batch = torch.from_numpy(np.stack([select_channels(s, channels) for s in stacks]))
+            batch = preprocess_batch(batch)
             if apply_mask:
-                imgs, masks = zip(*(load_crop(p, crop_size, channel_idx, return_mask=True)
-                                    for p in batch_paths))
-                batch = torch.from_numpy(np.stack(imgs))
-                masks = torch.from_numpy(np.stack(masks))  # (B, 1, H, W)
-                batch = preprocess_batch(batch) * masks    # mask LAST, after norm
-            else:
-                batch = torch.from_numpy(np.stack([
-                    load_crop(p, crop_size, channel_idx) for p in batch_paths
-                ]))
-                batch = preprocess_batch(batch)
+                # Mask LAST, after norm: normalization stats come from the full crop
+                # (matching training) and masking is a clean intervention on top.
+                masks = torch.from_numpy(np.stack([get_mask(s) for s in stacks]))  # (B, 1, H, W)
+                batch = batch * masks
 
             feats = model(batch.to(device)).cpu()  # (B, 768)
             all_feats.append(feats)

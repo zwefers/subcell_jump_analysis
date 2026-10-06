@@ -4,7 +4,8 @@
 #SBATCH --mem=16G
 #SBATCH --cpus-per-task=4
 #SBATCH -t 4:00:00
-#SBATCH --array=0-7
+##SBATCH --array=0-7
+#SBATCH --array=0-1
 #SBATCH --output=slurm_out/umap_%A_%a.out
 #SBATCH --error=slurm_out/umap_%A_%a.err
 #
@@ -31,18 +32,31 @@ source "${CONDA_ROOT}/etc/profile.d/conda.sh"
 conda activate "${CONDA_ENV_ANALYSIS}"
 set -u
 
+# PARQUETS=(
+#     "${EMBED_PROCESSED_ROOT}/cellprofiler/A549/median__fs1__mad_robustize__none.parquet"
+#     "${EMBED_PROCESSED_ROOT}/cellprofiler/U2OS/median__fs1__mad_robustize__none.parquet"
+#     "${EMBED_PROCESSED_ROOT}/dino/A549/mean__fs1__PCA__mad_robustize.parquet"
+#     "${EMBED_PROCESSED_ROOT}/dino/U2OS/mean__fs1__PCA__mad_robustize.parquet"
+#     "${EMBED_PROCESSED_ROOT}/subcell_mae_masked/A549/median__fs0__PCA__standardize.parquet"
+#     "${EMBED_PROCESSED_ROOT}/subcell_mae_masked/U2OS/median__fs0__PCA__standardize.parquet"
+#     "${EMBED_PROCESSED_ROOT}/deepprofiler/U2OS/mean__fs1__PCAcor__mad_robustize.parquet"
+#     "${EMBED_PROCESSED_ROOT}/deepprofiler/A549/mean__fs1__PCAcor__mad_robustize.parquet"
+# )
+
+# Cell-DINO (unmasked) best config, from best_configs in visualize_postprocessing.ipynb
+# (chosen by average rank). Already computed on 2026-10-02.
+# PARQUETS=(
+#     "${EMBED_PROCESSED_ROOT}/cell_dino/A549/mean__fs1__PCA__mad_robustize.parquet"
+#     "${EMBED_PROCESSED_ROOT}/cell_dino/U2OS/mean__fs1__PCA__mad_robustize.parquet"
+# )
+
+# SubCell MAE (unmasked) best config, from best_configs in visualize_postprocessing.ipynb
 PARQUETS=(
-    "${EMBED_PROCESSED_ROOT}/cellprofiler/A549/median__fs1__mad_robustize__none.parquet"
-    "${EMBED_PROCESSED_ROOT}/cellprofiler/U2OS/median__fs1__mad_robustize__none.parquet"
-    "${EMBED_PROCESSED_ROOT}/dino/A549/mean__fs1__PCA__mad_robustize.parquet"
-    "${EMBED_PROCESSED_ROOT}/dino/U2OS/mean__fs1__PCA__mad_robustize.parquet"
-    "${EMBED_PROCESSED_ROOT}/subcell_mae_masked/A549/median__fs0__PCA__standardize.parquet"
-    "${EMBED_PROCESSED_ROOT}/subcell_mae_masked/U2OS/median__fs0__PCA__standardize.parquet"
-    "${EMBED_PROCESSED_ROOT}/deepprofiler/U2OS/mean__fs1__PCAcor__mad_robustize.parquet"
-    "${EMBED_PROCESSED_ROOT}/deepprofiler/A549/mean__fs1__PCAcor__mad_robustize.parquet"
+    "${EMBED_PROCESSED_ROOT}/subcell_mae/A549/median__fs0__PCAcor__standardize.parquet"
+    "${EMBED_PROCESSED_ROOT}/subcell_mae/U2OS/median__fs0__PCAcor__standardize.parquet"
 )
 
 INPUT="${PARQUETS[$SLURM_ARRAY_TASK_ID]}"
 
 echo "[$(date)] task=${SLURM_ARRAY_TASK_ID} input=${INPUT}"
-python ../scripts/compute_umap.py "${INPUT}" --n-neighbors 5011 --min-dist 0.25
+python ../scripts/compute_umap.py "${INPUT}" --n-neighbors 100 --min-dist 0.25

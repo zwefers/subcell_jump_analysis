@@ -16,3 +16,10 @@
 
 __pycache__/
 *.pyc
+
+# Old / superseded outputs (kept on disk, not tracked)
+/map_summary_old.csv
+/deepprofiler-old_well_mean.csv
+/deepprofiler-old_well_median.csv
+/figures/umaps_NN100_mindist025/umap_subcell_mae_masked.pdf
+/figures/umaps_NN100_mindist025/umap_cell_dino_masked.pdf

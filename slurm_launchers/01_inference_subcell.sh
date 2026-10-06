@@ -5,7 +5,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
 #SBATCH -t 12:00:00
-#SBATCH --array=11-59%4
+#SBATCH --array=0-14%6
 #SBATCH --output=slurm_out/subcell_%A_%a.out
 #SBATCH --error=slurm_out/subcell_%A_%a.err
 #

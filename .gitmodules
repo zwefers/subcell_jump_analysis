@@ -7,3 +7,6 @@
 [submodule "models/SubCellPortable"]
 	path = models/SubCellPortable
 	url = https://github.com/CellProfiling/SubCellPortable.git
+[submodule "models/dinov2"]
+	path = models/dinov2
+	url = https://github.com/facebookresearch/dinov2.git

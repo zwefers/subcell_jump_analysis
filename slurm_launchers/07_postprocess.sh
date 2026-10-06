@@ -23,4 +23,16 @@ source "${CONDA_ROOT}/etc/profile.d/conda.sh"
 conda activate "${CONDA_ENV_ANALYSIS}"
 set -u
 
-python ../scripts/postprocess.py
+# No model list = every CSV in EMBED_WELL_ROOT:
+# python ../scripts/postprocess.py
+# models=(cell_dino cell_dino_avgpool cell_dino_masked cell_dino_avgpool_masked)
+# aggs=(mean median)
+# Unmasked SubCell MAE re-run: only the agg used by its best config (median)
+models=(subcell_mae)
+aggs=(median)
+
+for model in "${models[@]}"; do
+    for agg in "${aggs[@]}"; do
+        python ../scripts/postprocess.py --input "${model}_well_${agg}.csv"
+    done
+done
