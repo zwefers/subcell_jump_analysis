@@ -190,12 +190,31 @@ def main(args):
     compound_rows = pick_compounds(well_map, args.n_poscon, rng, override)
 
     crop_root = os.environ["CROP_ROOT"]
+
+    # Optional fixed crops: (cell_type, compound) -> crop path relative to CROP_ROOT.
+    # Compounds not in the CSV fall back to random selection.
+    fixed_crops = {}
+    if args.crops_csv:
+        crops_df = pd.read_csv(args.crops_csv)
+        crops_df = crops_df[crops_df["cell_type"] == args.cell_type]
+        fixed_crops = dict(zip(crops_df["compound"], crops_df["crop"]))
+        print(f"Using {len(fixed_crops)} fixed crops from {args.crops_csv}")
+
     samples = []
     for compound, ctrl_type in compound_rows:
-        path, plate, well = find_crop_for_compound(compound, well_map, plates, crop_root, rng)
+        if compound in fixed_crops:
+            rel = fixed_crops[compound]
+            path = os.path.join(crop_root, rel)
+            if not os.path.exists(path):
+                raise FileNotFoundError(f"Fixed crop for {compound} not found: {path}")
+            plate, well = rel.split("/")[:2]
+            source = "csv"
+        else:
+            path, plate, well = find_crop_for_compound(compound, well_map, plates, crop_root, rng)
+            source = "random"
         samples.append(dict(compound=compound, ctrl_type=ctrl_type,
                             path=path, plate=plate, well=well))
-        print(f"  {compound:<20s} [{ctrl_type:<15s}] → {plate}/{well}  {os.path.basename(path)}")
+        print(f"  {compound:<20s} [{ctrl_type:<15s}] → {plate}/{well}  {os.path.basename(path)}  ({source})")
 
     # ─── Load model ──────────────────────────────────────────────────────────
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -369,6 +388,10 @@ if __name__ == "__main__":
     p.add_argument("--compounds", type=str, default=None,
                    help="Comma-separated list of specific poscon compounds to show "
                         "(overrides random sampling). DMSO is always appended.")
+    p.add_argument("--crops-csv", type=Path, default=None,
+                   help="CSV with columns cell_type, compound, crop (path relative to "
+                        "CROP_ROOT). Listed compounds use that exact crop instead of a "
+                        "random one; unlisted compounds are sampled as usual.")
     p.add_argument("--output-dir", type=Path,
                    default=Path(os.environ.get("RESULTS_ROOT", "results")) / "attention_maps")
     main(p.parse_args())

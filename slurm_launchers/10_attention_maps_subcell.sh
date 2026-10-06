@@ -11,8 +11,12 @@
 # 2 cell types x 2 models = 4 runs, each emits 4 figures (Mito/AGP/RNA + Avg)
 # -> 16 figures total written to figures/ as both PNG and PDF @ dpi=300.
 #
-# Submit from the project root:
-#   cd $PROJECT_ROOT && sbatch slurm_launchers/08_attention_maps_subcell.sh
+# Crops were regenerated after the original figures, so random selection no
+# longer picks the same crop files. CROPS_CSV lists the exact crops shown in
+# those figures (recovered by pixel-matching the old PDFs, seed 0).
+#
+# Submit from slurm_launchers/ (paths below are relative to it):
+#   cd $PROJECT_ROOT/slurm_launchers && sbatch 10_attention_maps_subcell.sh [seed]
 
 set -euo pipefail
 
@@ -28,6 +32,7 @@ set -u
 
 SEED=${1:-0}
 OUTDIR="${PROJECT_ROOT}/figures/attention/"
+CROPS_CSV="${PROJECT_ROOT}/configs/attention_crops_seed0.csv"
 
 for CELL_TYPE in A549 U2OS; do
     for MODEL in mae vit; do
@@ -38,6 +43,7 @@ for CELL_TYPE in A549 U2OS; do
             --protein all \
             --seed "${SEED}" \
             --n-poscon 8 \
+            --crops-csv "${CROPS_CSV}" \
             --output-dir "${OUTDIR}"
     done
 done

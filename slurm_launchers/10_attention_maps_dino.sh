@@ -18,8 +18,12 @@
 # same cells — pick_compounds/find_crop_for_compound are byte-identical
 # and consume np.random.default_rng(seed) in the same order.
 #
-# Submit from the project root:
-#   cd $PROJECT_ROOT && sbatch slurm_launchers/09_attention_maps_dino.sh [seed]
+# Crops were regenerated after the original figures, so random selection no
+# longer picks the same crop files. CROPS_CSV lists the exact crops shown in
+# those figures (recovered by pixel-matching the old PDFs, seed 0).
+#
+# Submit from slurm_launchers/ (paths below are relative to it):
+#   cd $PROJECT_ROOT/slurm_launchers && sbatch 10_attention_maps_dino.sh [seed]
 
 set -euo pipefail
 
@@ -35,6 +39,7 @@ set -u
 
 SEED=${1:-0}
 OUTDIR="${PROJECT_ROOT}/figures/attention/"
+CROPS_CSV="${PROJECT_ROOT}/configs/attention_crops_seed0.csv"
 
 UPSCALE_FACTORS=(1.0 3.74)
 UPSCALE=${UPSCALE_FACTORS[$SLURM_ARRAY_TASK_ID]}
@@ -48,6 +53,7 @@ for CELL_TYPE in A549 U2OS; do
         --seed "${SEED}" \
         --n-poscon 8 \
         --upscale-factor "${UPSCALE}" \
+        --crops-csv "${CROPS_CSV}" \
         --output-dir "${OUTDIR}"
 done
 

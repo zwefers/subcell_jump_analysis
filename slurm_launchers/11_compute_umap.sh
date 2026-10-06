@@ -4,22 +4,22 @@
 #SBATCH --mem=16G
 #SBATCH --cpus-per-task=4
 #SBATCH -t 4:00:00
-##SBATCH --array=0-7
-#SBATCH --array=0-1
+#SBATCH --array=0-9
 #SBATCH --output=slurm_out/umap_%A_%a.out
 #SBATCH --error=slurm_out/umap_%A_%a.err
 #
-# Array job: 3 best models x 2 cell types = 6 tasks.
+# Array job: UMAP_MODELS x 2 cell types. Each model's postprocessing config is
+# read from configs/BEST_POSTPROC_CONFIGS.yaml (written by
+# visualize_postprocessing.ipynb).
 #
-#   0: cellprofiler       / A549
-#   1: cellprofiler       / U2OS
-#   2: dino               / A549
-#   3: dino               / U2OS
-#   4: subcell_mae_masked / A549
-#   5: subcell_mae_masked / U2OS
+#   task_id // 2 -> model index into UMAP_MODELS
+#   task_id % 2  -> cell type (0=A549, 1=U2OS)
 #
-# Submit from project root:
-#   cd $PROJECT_ROOT && sbatch slurm_launchers/11_compute_umap.sh
+# --array must cover n_models * 2 tasks; update it (or pass --array to sbatch)
+# when UMAP_MODELS changes.
+#
+# Submit from slurm_launchers/ (paths below are relative to it):
+#   cd $PROJECT_ROOT/slurm_launchers && sbatch 11_compute_umap.sh
 
 set -euo pipefail
 
@@ -32,31 +32,21 @@ source "${CONDA_ROOT}/etc/profile.d/conda.sh"
 conda activate "${CONDA_ENV_ANALYSIS}"
 set -u
 
-# PARQUETS=(
-#     "${EMBED_PROCESSED_ROOT}/cellprofiler/A549/median__fs1__mad_robustize__none.parquet"
-#     "${EMBED_PROCESSED_ROOT}/cellprofiler/U2OS/median__fs1__mad_robustize__none.parquet"
-#     "${EMBED_PROCESSED_ROOT}/dino/A549/mean__fs1__PCA__mad_robustize.parquet"
-#     "${EMBED_PROCESSED_ROOT}/dino/U2OS/mean__fs1__PCA__mad_robustize.parquet"
-#     "${EMBED_PROCESSED_ROOT}/subcell_mae_masked/A549/median__fs0__PCA__standardize.parquet"
-#     "${EMBED_PROCESSED_ROOT}/subcell_mae_masked/U2OS/median__fs0__PCA__standardize.parquet"
-#     "${EMBED_PROCESSED_ROOT}/deepprofiler/U2OS/mean__fs1__PCAcor__mad_robustize.parquet"
-#     "${EMBED_PROCESSED_ROOT}/deepprofiler/A549/mean__fs1__PCAcor__mad_robustize.parquet"
-# )
+# Models to compute UMAPs for
+UMAP_MODELS=(cellprofiler dino subcell_mae deepprofiler cell_dino)
+CELL_TYPES=(A549 U2OS)
 
-# Cell-DINO (unmasked) best config, from best_configs in visualize_postprocessing.ipynb
-# (chosen by average rank). Already computed on 2026-10-02.
-# PARQUETS=(
-#     "${EMBED_PROCESSED_ROOT}/cell_dino/A549/mean__fs1__PCA__mad_robustize.parquet"
-#     "${EMBED_PROCESSED_ROOT}/cell_dino/U2OS/mean__fs1__PCA__mad_robustize.parquet"
-# )
+MODEL=${UMAP_MODELS[$(( SLURM_ARRAY_TASK_ID / ${#CELL_TYPES[@]} ))]}
+CELL_TYPE=${CELL_TYPES[$(( SLURM_ARRAY_TASK_ID % ${#CELL_TYPES[@]} ))]}
 
-# SubCell MAE (unmasked) best config, from best_configs in visualize_postprocessing.ipynb
-PARQUETS=(
-    "${EMBED_PROCESSED_ROOT}/subcell_mae/A549/median__fs0__PCAcor__standardize.parquet"
-    "${EMBED_PROCESSED_ROOT}/subcell_mae/U2OS/median__fs0__PCAcor__standardize.parquet"
-)
+# Best config for this model, as a file stem, e.g. median__fs0__PCAcor__standardize
+STEM=$(python -c "
+import yaml
+c = yaml.safe_load(open('../configs/BEST_POSTPROC_CONFIGS.yaml'))['${MODEL}']
+print(f\"{c['agg']}__fs{c['fs']}__{c['norm1']}__{c['norm2']}\")
+")
 
-INPUT="${PARQUETS[$SLURM_ARRAY_TASK_ID]}"
+INPUT="${EMBED_PROCESSED_ROOT}/${MODEL}/${CELL_TYPE}/${STEM}.parquet"
 
-echo "[$(date)] task=${SLURM_ARRAY_TASK_ID} input=${INPUT}"
+echo "[$(date)] task=${SLURM_ARRAY_TASK_ID} model=${MODEL} cell_type=${CELL_TYPE} input=${INPUT}"
 python ../scripts/compute_umap.py "${INPUT}" --n-neighbors 100 --min-dist 0.25
